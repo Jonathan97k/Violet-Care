@@ -921,7 +921,7 @@ function BottomSheet({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end justify-center"
+      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end justify-center"
     >
       <motion.div
         initial={{ y: '100%' }}
