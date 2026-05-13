@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -9,6 +9,8 @@ const Auth = () => {
   const { isAuthenticated, hasBiometric, loginWithPIN, loginWithBiometric, error, lockoutRemaining, isLoading } = useAuth();
   const [pin, setPin] = useState('');
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
+  const [tapCount, setTapCount] = useState(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -40,6 +42,18 @@ const Auth = () => {
     if (success) {
       navigate('/');
     }
+  };
+
+  const handleLogoTap = () => {
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    const next = tapCount + 1;
+    if (next >= 7) {
+      setTapCount(0);
+      navigate('/admin-login');
+      return;
+    }
+    setTapCount(next);
+    tapTimerRef.current = setTimeout(() => setTapCount(0), 2000);
   };
 
   const handleReset = async () => {
@@ -86,7 +100,12 @@ const Auth = () => {
           transition={{ delay: 0.2, duration: 0.5 }}
           className="text-center mb-8"
         >
-          <div className="text-6xl mb-4">💜</div>
+          <div
+            className="text-6xl mb-4 cursor-default select-none"
+            onClick={handleLogoTap}
+          >
+            💜
+          </div>
           <h1 className="text-3xl font-playfair font-semibold text-white mb-2">
             Welcome back, Violet
           </h1>

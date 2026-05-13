@@ -11,7 +11,10 @@ import Wellness from './pages/Wellness';
 import Messages from './pages/Messages';
 import Moments from './pages/Moments';
 import Profile from './pages/Profile';
+import AdminLogin from './pages/AdminLogin';
+import Admin from './pages/Admin';
 import BottomNav from './components/layout/BottomNav';
+import { isAdminSession } from './utils/adminAuth';
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -38,9 +41,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <PageWrapper>{children}</PageWrapper>;
 }
 
+function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
+  return isAdminSession() ? <PageWrapper>{children}</PageWrapper> : <Navigate to="/admin-login" replace />;
+}
+
 function App() {
   const location = useLocation();
-  const hideNavRoutes = ['/splash', '/auth', '/onboarding'];
+  const hideNavRoutes = ['/splash', '/auth', '/onboarding', '/admin-login', '/admin'];
   const showBottomNav = !hideNavRoutes.includes(location.pathname);
 
   return (
@@ -125,6 +132,15 @@ function App() {
             }
           />
           
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <Admin />
+              </AdminProtectedRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
