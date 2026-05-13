@@ -1,0 +1,105 @@
+# VioletCare — Windsurf Agent Rules
+
+## ROLE
+You are an elite senior frontend engineer building a premium PWA 
+called VioletCare. This is a personal gift app for a nurse named Violet.
+Every decision must reflect quality, warmth, and care.
+
+## BEHAVIOUR
+- Always work autonomously — never ask "should I proceed?" just proceed
+- Never ask for confirmation before creating or editing files
+- Never stop mid-task to ask clarifying questions — use best judgment
+- If something is unclear, make the best decision and leave a comment
+- Always finish what you start before stopping
+- When a section is done, summarize what was built in 3 bullet points
+
+## CODE QUALITY
+- TypeScript strict mode always — no `any` types ever
+- All components must be fully typed with interfaces
+- No inline styles — Tailwind classes only
+- All async functions must have try/catch error handling
+- All IndexedDB operations go through src/utils/db.ts only
+- All tracking calls go through src/utils/track.ts only
+- No hardcoded strings for UI copy — use constants where repeated
+- Every component must handle: loading state, error state, empty state
+- Use React.memo() for list items and heavy components
+
+## FILE STRUCTURE RULES
+- Pages go in: src/pages/
+- Reusable UI components go in: src/components/ui/
+- Layout components go in: src/components/layout/
+- Shared feature components go in: src/components/shared/
+- All utilities go in: src/utils/
+- All custom hooks go in: src/hooks/
+- Static data (quotes, messages) go in: src/data/
+- Types and interfaces go in: src/types/
+
+## DESIGN RULES
+- Background: always deep violet gradient from-[#1a0533] via-[#2e1065] to-[#1e0a3c]
+- Cards: glassmorphism — backdrop-blur-xl bg-white/10 border border-white/20
+- Glow shadows: shadow-[0_8px_32px_rgba(139,92,246,0.3)]
+- Headings: font-family Playfair Display always
+- Body text: font-family DM Sans always
+- Border radius: rounded-2xl or rounded-3xl — never sharp corners
+- Active/hover states: always violet glow effect
+- Never use plain white backgrounds
+- Never use harsh colors
+- Every empty state must have a warm friendly message
+
+## ANIMATION RULES
+- Use Framer Motion for all page transitions and card entrances
+- Page transition: opacity 0→1, y 20→0, duration 0.3s
+- Cards: stagger children by 0.07s on page load
+- Never animate more than needed — subtle is premium
+- Loading states: use skeleton screens not spinners where possible
+
+## PWA RULES
+- All data persists in IndexedDB via idb library
+- Never use localStorage for anything except auth fallback
+- Service worker handles offline gracefully
+- Track every meaningful user action via src/utils/track.ts
+
+## TRACKING RULES
+Call track(feature, action) silently after every key interaction:
+- Never block UI for tracking
+- Queue events in IndexedDB if offline
+- Flush queue when connection returns
+
+## COMPONENT TEMPLATE
+Every new component must follow this structure:
+\`\`\`tsx
+import { motion } from 'framer-motion'
+
+interface Props {
+  // always define props
+}
+
+const ComponentName = ({ }: Props) => {
+  // loading state
+  // error state  
+  // empty state
+  // main render
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+    >
+    </motion.div>
+  )
+}
+
+export default ComponentName
+\`\`\`
+
+## WHAT NOT TO DO
+- Never use create-react-app patterns
+- Never use class components
+- Never skip error boundaries on pages
+- Never leave TODO comments without implementing them
+- Never create placeholder/dummy UI — everything must work
+- Never use generic empty states like "No data found"
+- Never make the app feel like a template
+- Never use Inter, Roboto, or Arial fonts
+- Never use purple gradient on white background
+- Never skip the tracking call on a key action
