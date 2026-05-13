@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Stethoscope, Droplets, FileText, Mail, Sparkles } from 'lucide-react';
+import { Calendar, Stethoscope, Droplets, FileText, Mail, Sparkles, Heart, User } from 'lucide-react';
 import WellnessRing from '../components/shared/WellnessRing';
 import QuoteCard from '../components/shared/QuoteCard';
 import UpcomingReminders from '../components/shared/UpcomingReminders';
 import { track } from '../utils/track';
-import { getHydration, getMood, getSleep } from '../utils/db';
+import { getHydration, getMood, getSleep, getSetting } from '../utils/db';
 import { getAllShifts } from '../utils/db';
 import { getAllNotes } from '../utils/db';
 
@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [wellnessScore, setWellnessScore] = useState(0);
   const [nextShift, setNextShift] = useState<string>('');
   const [totalNotes, setTotalNotes] = useState(0);
+  const [profilePhoto, setProfilePhoto] = useState('');
 
   useEffect(() => {
     track('Dashboard', 'opened');
@@ -83,6 +84,9 @@ const Dashboard = () => {
 
         const notes = await getAllNotes();
         setTotalNotes(notes.length);
+
+        const photoSetting = await getSetting('profile.photo');
+        if (photoSetting?.value) setProfilePhoto(String(photoSetting.value));
       } catch (error) {
         console.error('Failed to load dashboard data:', error);
       }
@@ -188,16 +192,30 @@ const Dashboard = () => {
         transition={{ duration: 0.5 }}
         className="mb-6"
       >
-        <p className="text-white/70 font-dm-sans text-sm tracking-widest uppercase mb-1">
-          {getGreeting()}
-        </p>
-        <h1 className="text-5xl font-playfair font-bold text-white mb-1">
-          Violet 💜
-        </h1>
-        <p className="text-white/60 font-dm-sans text-sm mt-1">{formatDate()}</p>
-        <p className="text-white/80 font-light text-lg">
-          {formatTime()}
-        </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-white/70 font-dm-sans text-sm tracking-widest uppercase mb-1">
+              {getGreeting()}
+            </p>
+            <h1 className="text-5xl font-playfair font-bold text-white mb-1 flex items-center gap-2">
+              Violet <Heart size={32} className="animate-heartbeat" fill="currentColor" />
+            </h1>
+            <p className="text-white/60 font-dm-sans text-sm mt-1">{formatDate()}</p>
+            <p className="text-white/80 font-light text-lg">
+              {formatTime()}
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/profile')}
+            className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-violet-400/50 flex items-center justify-center bg-violet-500/20 shrink-0"
+          >
+            {profilePhoto ? (
+              <img src={profilePhoto} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User size={22} className="text-violet-200" />
+            )}
+          </button>
+        </div>
       </motion.div>
 
       <motion.div

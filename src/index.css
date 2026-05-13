@@ -356,3 +356,26 @@ input::placeholder, textarea::placeholder {
 .animate-pulse-soft {
   animation: pulse-soft 3s ease-in-out infinite;
 }
+
+/* Rainbow beating heart */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.35); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.35); }
+  70% { transform: scale(1); }
+}
+
+@keyframes rainbow {
+  0% { color: #ff0000; filter: drop-shadow(0 0 5px #ff0000); }
+  16% { color: #ff7f00; filter: drop-shadow(0 0 5px #ff7f00); }
+  33% { color: #ffff00; filter: drop-shadow(0 0 5px #ffff00); }
+  50% { color: #00ff00; filter: drop-shadow(0 0 5px #00ff00); }
+  66% { color: #0000ff; filter: drop-shadow(0 0 5px #0000ff); }
+  83% { color: #8b00ff; filter: drop-shadow(0 0 5px #8b00ff); }
+  100% { color: #ff0000; filter: drop-shadow(0 0 5px #ff0000); }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.2s ease-in-out infinite, rainbow 3s linear infinite;
+}
