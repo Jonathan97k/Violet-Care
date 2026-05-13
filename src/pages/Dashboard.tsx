@@ -9,7 +9,6 @@ import { track } from '../utils/track';
 import { getHydration, getMood, getSleep } from '../utils/db';
 import { getAllShifts } from '../utils/db';
 import { getAllNotes } from '../utils/db';
-import { setSetting, getSetting } from '../utils/db';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -231,7 +230,7 @@ const Dashboard = () => {
           Quick Access
         </h3>
         <div className="grid grid-cols-3 gap-3">
-          {quickCards.map((card, index) => (
+          {quickCards.map((card) => (
             <motion.button
               key={card.label}
               variants={itemVariants}

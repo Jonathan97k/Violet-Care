@@ -5,7 +5,7 @@ export interface Shift {
   startTime: string; // HH:mm
   endTime: string; // HH:mm
   ward?: string;
-  type: 'day' | 'night' | 'on-call';
+  type: 'day' | 'night' | 'on-call' | 'training' | 'off';
   notes?: string;
   createdAt: string;
   updatedAt: string;

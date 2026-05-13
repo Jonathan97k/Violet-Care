@@ -38,7 +38,7 @@ export function useAuth(): AuthState & {
 
   const refresh = useCallback(async () => {
     try {
-      const [setupComplete, biometric, locked, attempts, lockoutTime] =
+      const [setupComplete, biometric, _locked, attempts, lockoutTime] =
         await Promise.all([
           isSetupComplete(),
           hasBiometricCredential(),

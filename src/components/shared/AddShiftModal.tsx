@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Shift } from '../../types';
-import { shiftTypes, getShiftTypeByValue } from '../../data/shiftTypes';
+import { shiftTypes } from '../../data/shiftTypes';
 
 interface Props {
   isOpen: boolean;

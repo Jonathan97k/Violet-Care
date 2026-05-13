@@ -10,8 +10,8 @@ const Onboarding = () => {
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [biometricRegistered, setBiometricRegistered] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
+  const [_biometricRegistered, setBiometricRegistered] = useState(false);
+  const [_showConfetti, setShowConfetti] = useState(false);
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },

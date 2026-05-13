@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Shift } from '../../types';
 import { getShiftTypeByValue } from '../../data/shiftTypes';
