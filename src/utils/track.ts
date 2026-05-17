@@ -1,7 +1,25 @@
 import type { UsageEvent } from '../types';
 import { queueUsageEvent, getQueuedUsageEvents, deleteUsageEvent } from './db';
+import config from './config';
 
-const WEBHOOK_URL = import.meta.env.VITE_TRACKING_WEBHOOK || '';
+/*
+ GOOGLE APPS SCRIPT UPDATE REQUIRED:
+ Add token validation to your Apps Script doPost function.
+
+ In your script, add at the top of doPost:
+
+ var SECRET_TOKEN = "same_token_as_VITE_TRACKING_TOKEN"
+
+ if (data.token !== SECRET_TOKEN) {
+   return ContentService
+     .createTextOutput(JSON.stringify({
+       status: "unauthorized"
+     }))
+     .setMimeType(ContentService.MimeType.JSON)
+ }
+
+ Then redeploy as a new version.
+*/
 
 function getTimeOfDay(): 'morning' | 'afternoon' | 'night' {
   const hour = new Date().getHours();
@@ -11,23 +29,30 @@ function getTimeOfDay(): 'morning' | 'afternoon' | 'night' {
 }
 
 async function sendEvent(event: UsageEvent): Promise<boolean> {
-  if (!WEBHOOK_URL) {
-    console.warn('Tracking webhook URL not configured');
+  if (!config.trackingWebhook) {
+    if (config.isDev) {
+      console.warn('Tracking webhook URL not configured');
+    }
     return false;
   }
 
   try {
-    await fetch(WEBHOOK_URL, {
+    await fetch(config.trackingWebhook, {
       method: 'POST',
       mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(event),
+      body: JSON.stringify({
+        ...event,
+        token: config.trackingToken,
+      }),
     });
     return true;
   } catch (error) {
-    console.error('Failed to send tracking event:', error);
+    if (config.isDev) {
+      console.error('Failed to send tracking event:', error);
+    }
     return false;
   }
 }
@@ -49,7 +74,9 @@ export async function track(feature: string, action: string): Promise<void> {
     try {
       await queueUsageEvent(event);
     } catch (error) {
-      console.error('Failed to queue tracking event:', error);
+      if (config.isDev) {
+        console.error('Failed to queue tracking event:', error);
+      }
     }
   }
 }
@@ -57,7 +84,7 @@ export async function track(feature: string, action: string): Promise<void> {
 export async function flushQueuedEvents(): Promise<void> {
   try {
     const queued = await getQueuedUsageEvents();
-    
+
     for (const event of queued) {
       const sent = await sendEvent(event);
       if (sent && event.id !== undefined) {
@@ -65,7 +92,9 @@ export async function flushQueuedEvents(): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Failed to flush queued events:', error);
+    if (config.isDev) {
+      console.error('Failed to flush queued events:', error);
+    }
   }
 }
 

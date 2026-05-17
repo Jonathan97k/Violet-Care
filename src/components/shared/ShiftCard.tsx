@@ -1,14 +1,19 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import type { Shift } from '../../types';
 import { getShiftTypeByValue } from '../../data/shiftTypes';
+import { updateShift } from '../../utils/db';
+import { haptics } from '../../utils/haptics';
 
 interface Props {
   shift: Shift;
   onEdit: (shift: Shift) => void;
   onDelete: (id: string) => void;
+  onUpdate?: (shift: Shift) => void;
 }
 
-const ShiftCard = ({ shift, onEdit, onDelete }: Props) => {
+const ShiftCard = ({ shift, onEdit, onDelete, onUpdate }: Props) => {
+  const navigate = useNavigate();
   const shiftType = getShiftTypeByValue(shift.type);
   const shiftDate = new Date(shift.date);
   const dayName = shiftDate.toLocaleDateString('en-US', { weekday: 'long' });
@@ -16,6 +21,13 @@ const ShiftCard = ({ shift, onEdit, onDelete }: Props) => {
     day: 'numeric',
     month: 'short',
   });
+
+  const now = new Date();
+  const isToday = shift.date === now.toISOString().split('T')[0];
+  const [endH, endM] = shift.endTime.split(':').map(Number);
+  const endMinutes = endH * 60 + endM;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const showComplete = isToday && nowMinutes >= endMinutes && !shift.completed;
 
   const calculateDuration = () => {
     const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
@@ -39,6 +51,21 @@ const ShiftCard = ({ shift, onEdit, onDelete }: Props) => {
     } else {
       return `${minutes}m`;
     }
+  };
+
+  const handleComplete = async () => {
+    const updated = { ...shift, completed: true, completedAt: new Date().toISOString() };
+    await updateShift(updated);
+    haptics.success();
+    onUpdate?.(updated);
+    navigate('/decompression', { state: { shift: updated } });
+  };
+
+  const toggleReminders = async () => {
+    const updated = { ...shift, remindersEnabled: !shift.remindersEnabled };
+    await updateShift(updated);
+    haptics.light();
+    onUpdate?.(updated);
   };
 
   return (
@@ -76,6 +103,25 @@ const ShiftCard = ({ shift, onEdit, onDelete }: Props) => {
         </p>
       )}
 
+      {shift.completed && (
+        <p className="text-rose-300 text-xs font-medium mb-3">💜 Shift completed</p>
+      )}
+
+      {isToday && (
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            type="checkbox"
+            id={`reminders-${shift.id}`}
+            checked={shift.remindersEnabled !== false}
+            onChange={toggleReminders}
+            className="w-4 h-4 accent-violet-500"
+          />
+          <label htmlFor={`reminders-${shift.id}`} className="text-white/70 text-xs font-dm-sans">
+            Meal & break reminders
+          </label>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <motion.button
           whileHover={{ scale: 1.05 }}
@@ -98,6 +144,19 @@ const ShiftCard = ({ shift, onEdit, onDelete }: Props) => {
           Delete
         </motion.button>
       </div>
+
+      {showComplete && (
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleComplete}
+          className="w-full mt-3 py-3 rounded-2xl bg-gradient-to-r from-violet-500/30 to-rose-400/30 border border-violet-300/40 text-white font-medium"
+        >
+          Complete Shift 💜
+        </motion.button>
+      )}
     </motion.div>
   );
 };

@@ -1,9 +1,11 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
   plugins: [
     react(),
     VitePWA({
@@ -55,4 +57,21 @@ export default defineConfig({
       }
     })
   ],
+  server: {
+    proxy: {
+      '/api/chat': {
+        target: 'https://openrouter.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/chat/, '/api/v1'),
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('Authorization', `Bearer ${env.VITE_OPENROUTER_API_KEY}`);
+            proxyReq.setHeader('HTTP-Referer', 'http://localhost:5173');
+            proxyReq.setHeader('X-Title', 'VioletCare');
+          });
+        }
+      }
+    }
+  }
+  };
 })

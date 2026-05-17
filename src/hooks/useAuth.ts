@@ -56,8 +56,7 @@ export function useAuth(): AuthState & {
         lockoutRemaining: lockoutTime,
         isLoading: false,
       }));
-    } catch (error) {
-      console.error('Failed to refresh auth state:', error);
+    } catch {
       setState((prev) => ({ ...prev, isLoading: false }));
     }
   }, []);

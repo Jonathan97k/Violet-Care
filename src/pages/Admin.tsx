@@ -15,9 +15,19 @@ import {
   ExternalLink,
   AlertTriangle,
   Save,
+  Mail,
+  Calendar,
+  Bell,
+  Shield,
 } from 'lucide-react';
-import { getAllPhotos, deletePhoto, addPhoto, getQueuedUsageEvents, getSetting, setSetting } from '../utils/db';
-import type { Photo, UsageEvent } from '../types';
+import {
+  getAllPhotos, deletePhoto, addPhoto, getQueuedUsageEvents, getSetting, setSetting,
+  getAllLetters, addLetter, deleteLetter,
+  getAllMonthlyLetters, addMonthlyLetter, deleteMonthlyLetter,
+  getAllPings, addPing, deletePing,
+  getAllLostModeData, addLostModeData, deleteLostModeData,
+} from '../utils/db';
+import type { Photo, UsageEvent, Letter, MonthlyLetter, Ping, LostModeData } from '../types';
 import {
   isAdminSession,
   clearAdminSession,
@@ -25,6 +35,7 @@ import {
   changeAdminPIN,
   exportAllData,
   importAllData,
+  getSessionExpiry,
 } from '../utils/adminAuth';
 import { flushQueuedEvents } from '../utils/track';
 
@@ -32,17 +43,52 @@ const ADMIN_SHEET_URL_KEY = 'admin.sheetUrl';
 
 const Admin = () => {
   const navigate = useNavigate();
+  const [expiryMs, setExpiryMs] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isAdminSession()) {
       navigate('/admin-login');
+      return;
     }
+
+    const updateExpiry = () => {
+      const expiry = getSessionExpiry();
+      if (!expiry) {
+        clearAdminSession();
+        navigate('/admin-login');
+        return;
+      }
+      const remaining = expiry - Date.now();
+      if (remaining <= 0) {
+        clearAdminSession();
+        navigate('/admin-login');
+        return;
+      }
+      setExpiryMs(remaining);
+    };
+
+    updateExpiry();
+    const interval = setInterval(updateExpiry, 60000); // Update every minute
+
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const handleExit = () => {
     clearAdminSession();
     navigate('/auth');
   };
+
+  const formatSessionTime = (ms: number) => {
+    const hours = Math.floor(ms / 3600000);
+    const minutes = Math.floor((ms % 3600000) / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const isSessionExpiringSoon = expiryMs && expiryMs < 5 * 60 * 1000; // Less than 5 minutes
 
   return (
     <div className="min-h-screen px-4 pt-8 pb-28">
@@ -56,6 +102,11 @@ const Admin = () => {
           <p className="text-white/50 text-xs font-dm-sans mt-1">
             {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })} · {new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
           </p>
+          {expiryMs && (
+            <p className={`${isSessionExpiringSoon ? 'text-amber-400' : 'text-violet-300'} text-xs font-dm-sans mt-0.5 flex items-center gap-1`}>
+              <Shield size={10} /> Session expires in {formatSessionTime(expiryMs)}
+            </p>
+          )}
         </div>
         <button
           onClick={handleExit}
@@ -67,6 +118,10 @@ const Admin = () => {
 
       <div className="space-y-5">
         <PinManagement />
+        <LostModePanel />
+        <LetterManager />
+        <MonthlyLetterManager />
+        <PingManager />
         <PhotoGallery />
         <UsageAnalytics />
         <Maintenance />
@@ -222,7 +277,8 @@ function PhotoGallery() {
 
   useEffect(() => {
     refresh();
-  }, [refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onFile = (file: File) => {
     const reader = new FileReader();
@@ -625,6 +681,379 @@ function Maintenance() {
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ========================= LOST MODE PANEL ========================= */
+
+function LostModePanel() {
+  const [contacts, setContacts] = useState<LostModeData[]>([]);
+  const [form, setForm] = useState({ key: '', value: '' });
+  const [adding, setAdding] = useState(false);
+
+  const refresh = async () => {
+    const all = await getAllLostModeData();
+    setContacts(all);
+  };
+
+  useEffect(() => {
+    refresh();
+     
+  }, []);
+
+  const save = async () => {
+    if (!form.key || !form.value) return;
+    await addLostModeData({ key: form.key, value: form.value });
+    setForm({ key: '', value: '' });
+    setAdding(false);
+    refresh();
+  };
+
+  const remove = async (key: string) => {
+    await deleteLostModeData(key);
+    refresh();
+  };
+
+  return (
+    <section className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Shield size={18} className="text-violet-300" />
+          <h2 className="text-white font-playfair text-lg">Lost Mode Contacts</h2>
+        </div>
+        <span className="text-white/50 text-xs font-dm-sans">{contacts.length} entries</span>
+      </div>
+
+      <div className="space-y-2 mb-3">
+        {contacts.map((c) => (
+          <div key={c.key} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+            <div>
+              <p className="text-white text-sm font-medium">{c.key}</p>
+              <p className="text-white/60 text-xs">{c.value}</p>
+            </div>
+            <button onClick={() => remove(c.key)} className="p-1.5 text-rose-300 hover:text-rose-200">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setAdding(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-white text-sm hover:bg-violet-500/30 transition-colors"
+      >
+        <Plus size={14} /> Add Contact
+      </button>
+
+      <AnimatePresence>
+        {adding && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 overflow-hidden"
+          >
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <input placeholder="Label (e.g. Home)" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} className="w-full" />
+              <input placeholder="Phone or email" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} className="w-full" />
+              <div className="flex gap-2">
+                <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium transition-colors">Save</button>
+                <button onClick={() => setAdding(false)} className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">Cancel</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ========================= LETTER MANAGER ========================= */
+
+function LetterManager() {
+  const [letters, setLetters] = useState<Letter[]>([]);
+  const [form, setForm] = useState({ title: '', content: '', unlockDate: '' });
+  const [adding, setAdding] = useState(false);
+
+  const refresh = async () => {
+    const all = await getAllLetters();
+    setLetters(all.sort((a, b) => new Date(a.unlockDate).getTime() - new Date(b.unlockDate).getTime()));
+  };
+
+  useEffect(() => {
+    refresh();
+     
+  }, []);
+
+  const save = async () => {
+    if (!form.title || !form.content || !form.unlockDate) return;
+    await addLetter({
+      id: crypto.randomUUID(),
+      title: form.title,
+      content: form.content,
+      unlockDate: form.unlockDate,
+      isRevealed: false,
+    });
+    setForm({ title: '', content: '', unlockDate: '' });
+    setAdding(false);
+    refresh();
+  };
+
+  const remove = async (id: string) => {
+    await deleteLetter(id);
+    refresh();
+  };
+
+  return (
+    <section className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Mail size={18} className="text-violet-300" />
+          <h2 className="text-white font-playfair text-lg">Letters</h2>
+        </div>
+        <span className="text-white/50 text-xs font-dm-sans">{letters.length} letters</span>
+      </div>
+
+      <div className="space-y-2 mb-3 max-h-64 overflow-y-auto pr-1">
+        {letters.map((l) => (
+          <div key={l.id} className="flex items-start justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+            <div>
+              <p className="text-white text-sm font-medium">{l.title}</p>
+              <p className="text-white/60 text-xs">Unlocks {new Date(l.unlockDate).toLocaleDateString()}</p>
+              {l.isRevealed && <span className="text-rose-300 text-[10px]">💜 Read</span>}
+            </div>
+            <button onClick={() => remove(l.id)} className="p-1.5 text-rose-300 hover:text-rose-200 mt-0.5">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setAdding(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-white text-sm hover:bg-violet-500/30 transition-colors"
+      >
+        <Plus size={14} /> Add Letter
+      </button>
+
+      <AnimatePresence>
+        {adding && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 overflow-hidden"
+          >
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full" />
+              <textarea placeholder="Content" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full h-24 bg-white/5 border border-white/15 rounded-xl p-3 text-white text-sm resize-none" />
+              <div>
+                <p className="text-white/60 text-xs mb-1">Unlock date</p>
+                <input type="date" value={form.unlockDate} onChange={(e) => setForm({ ...form, unlockDate: e.target.value })} className="w-full" />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium transition-colors">Save</button>
+                <button onClick={() => setAdding(false)} className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">Cancel</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ========================= MONTHLY LETTER MANAGER ========================= */
+
+function MonthlyLetterManager() {
+  const [letters, setLetters] = useState<MonthlyLetter[]>([]);
+  const [form, setForm] = useState({ content: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+  const [adding, setAdding] = useState(false);
+
+  const refresh = async () => {
+    const all = await getAllMonthlyLetters();
+    setLetters(all.sort((a, b) => b.year - a.year || b.month - a.month));
+  };
+
+  useEffect(() => {
+    refresh();
+     
+  }, []);
+
+  const save = async () => {
+    if (!form.content) return;
+    await addMonthlyLetter({
+      id: crypto.randomUUID(),
+      month: Number(form.month),
+      year: Number(form.year),
+      content: form.content,
+      isRead: false,
+    });
+    setForm({ content: '', month: new Date().getMonth() + 1, year: new Date().getFullYear() });
+    setAdding(false);
+    refresh();
+  };
+
+  const remove = async (id: string) => {
+    await deleteMonthlyLetter(id);
+    refresh();
+  };
+
+  return (
+    <section className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Calendar size={18} className="text-violet-300" />
+          <h2 className="text-white font-playfair text-lg">Monthly Letters</h2>
+        </div>
+        <span className="text-white/50 text-xs font-dm-sans">{letters.length} entries</span>
+      </div>
+
+      <div className="space-y-2 mb-3 max-h-64 overflow-y-auto pr-1">
+        {letters.map((l) => (
+          <div key={l.id} className="flex items-start justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+            <div>
+              <p className="text-white text-sm font-medium">{new Date(l.year, l.month - 1).toLocaleString('en-US', { month: 'long' })} {l.year}</p>
+              <p className="text-white/60 text-xs line-clamp-2">{l.content}</p>
+            </div>
+            <button onClick={() => remove(l.id)} className="p-1.5 text-rose-300 hover:text-rose-200 mt-0.5">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setAdding(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-white text-sm hover:bg-violet-500/30 transition-colors"
+      >
+        <Plus size={14} /> Add Monthly Letter
+      </button>
+
+      <AnimatePresence>
+        {adding && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 overflow-hidden"
+          >
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <div className="flex gap-2">
+                <select
+                  value={form.month}
+                  onChange={(e) => setForm({ ...form, month: Number(e.target.value) })}
+                  className="flex-1 bg-white/5 border border-white/15 rounded-xl p-2 text-white text-sm"
+                >
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <option key={i} value={i + 1}>{new Date(2000, i).toLocaleString('en-US', { month: 'long' })}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  value={form.year}
+                  onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
+                  className="flex-1 bg-white/5 border border-white/15 rounded-xl p-2 text-white text-sm"
+                />
+              </div>
+              <textarea placeholder="Write the monthly letter..." value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full h-24 bg-white/5 border border-white/15 rounded-xl p-3 text-white text-sm resize-none" />
+              <div className="flex gap-2">
+                <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium transition-colors">Save</button>
+                <button onClick={() => setAdding(false)} className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">Cancel</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+/* ========================= PING MANAGER ========================= */
+
+function PingManager() {
+  const [pings, setPings] = useState<Ping[]>([]);
+  const [form, setForm] = useState({ message: '' });
+  const [adding, setAdding] = useState(false);
+
+  const refresh = async () => {
+    const all = await getAllPings();
+    setPings(all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+  };
+
+  useEffect(() => {
+    refresh();
+     
+  }, []);
+
+  const save = async () => {
+    if (!form.message) return;
+    await addPing({
+      id: crypto.randomUUID(),
+      message: form.message,
+      seen: false,
+      timestamp: new Date().toISOString(),
+    });
+    setForm({ message: '' });
+    setAdding(false);
+    refresh();
+  };
+
+  const remove = async (id: string) => {
+    await deletePing(id);
+    refresh();
+  };
+
+  return (
+    <section className="glass-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Bell size={18} className="text-violet-300" />
+          <h2 className="text-white font-playfair text-lg">Thinking of You Pings</h2>
+        </div>
+        <span className="text-white/50 text-xs font-dm-sans">{pings.length} pings</span>
+      </div>
+
+      <div className="space-y-2 mb-3 max-h-64 overflow-y-auto pr-1">
+        {pings.map((p) => (
+          <div key={p.id} className="flex items-start justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+            <div>
+              <p className="text-white text-sm">{p.message}</p>
+              <p className="text-white/40 text-[10px]">{new Date(p.timestamp).toLocaleDateString()}</p>
+            </div>
+            <button onClick={() => remove(p.id)} className="p-1.5 text-rose-300 hover:text-rose-200 mt-0.5">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <button
+        onClick={() => setAdding(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-white text-sm hover:bg-violet-500/30 transition-colors"
+      >
+        <Plus size={14} /> Send Ping
+      </button>
+
+      <AnimatePresence>
+        {adding && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 overflow-hidden"
+          >
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+              <textarea placeholder="Write a sweet ping..." value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="w-full h-20 bg-white/5 border border-white/15 rounded-xl p-3 text-white text-sm resize-none" />
+              <div className="flex gap-2">
+                <button onClick={save} className="flex-1 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium transition-colors">Send</button>
+                <button onClick={() => setAdding(false)} className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">Cancel</button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

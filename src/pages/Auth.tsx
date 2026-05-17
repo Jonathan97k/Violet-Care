@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { clearAuth } from '../utils/auth';
+import AffirmationOverlay from '../components/shared/AffirmationOverlay';
+import { haptics } from '../utils/haptics';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -11,40 +13,47 @@ const Auth = () => {
   const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [tapCount, setTapCount] = useState(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showAffirmation, setShowAffirmation] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
+      haptics.success();
+      setShowAffirmation(true);
       navigate('/');
     }
-  }, [isAuthenticated, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const attemptBiometric = async () => {
       if (hasBiometric && !isLoading) {
         setIsBiometricLoading(true);
         await new Promise(resolve => setTimeout(resolve, 500));
-        const success = await loginWithBiometric();
+        await loginWithBiometric();
         setIsBiometricLoading(false);
-        if (success) {
-          navigate('/');
-        }
+        // isAuthenticated effect handles navigation via affirmation overlay
       }
     };
 
     attemptBiometric();
   }, [hasBiometric, isLoading, loginWithBiometric, navigate]);
 
+  useEffect(() => {
+    if (error) {
+      haptics.error();
+    }
+  }, [error]);
+
   const handlePINSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pin.length !== 6) return;
 
-    const success = await loginWithPIN(pin);
-    if (success) {
-      navigate('/');
-    }
+    await loginWithPIN(pin);
+    // isAuthenticated effect handles navigation via affirmation overlay
   };
 
   const handleLogoTap = () => {
+    haptics.light();
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
     const next = tapCount + 1;
     if (next >= 7) {
@@ -207,6 +216,10 @@ const Auth = () => {
           Reset App & Start Over
         </motion.button>
       </motion.div>
+
+      {showAffirmation && (
+        <AffirmationOverlay onComplete={() => navigate('/')} />
+      )}
     </div>
   );
 };

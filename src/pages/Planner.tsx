@@ -20,15 +20,6 @@ const Planner = () => {
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [upcomingShifts, setUpcomingShifts] = useState<Shift[]>([]);
 
-  useEffect(() => {
-    track('Shift Planner', 'opened');
-    loadShifts();
-  }, []);
-
-  useEffect(() => {
-    loadUpcomingShifts();
-  }, [shifts]);
-
   const loadShifts = async () => {
     try {
       const allShifts = await getAllShifts();
@@ -43,22 +34,31 @@ const Planner = () => {
       const today = new Date();
       const futureDate = new Date(today);
       futureDate.setDate(futureDate.getDate() + 30);
-      
+
       const upcoming = await getShiftsByDateRange(
         today.toISOString().split('T')[0],
         futureDate.toISOString().split('T')[0]
       );
-      
+
       const sorted = upcoming
         .filter((shift) => new Date(shift.date) >= today)
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(0, 5);
-      
+
       setUpcomingShifts(sorted);
     } catch (error) {
       console.error('Failed to load upcoming shifts:', error);
     }
   };
+
+  useEffect(() => {
+    track('Shift Planner', 'opened');
+    loadShifts();
+  }, []);
+
+  useEffect(() => {
+    loadUpcomingShifts();
+  }, [shifts]);
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
@@ -180,6 +180,10 @@ const Planner = () => {
                   shift={shift}
                   onEdit={handleEditShift}
                   onDelete={handleDeleteShift}
+                  onUpdate={async (updated) => {
+                    await updateShift(updated);
+                    await loadShifts();
+                  }}
                 />
               ))}
             </AnimatePresence>

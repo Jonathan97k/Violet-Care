@@ -30,27 +30,6 @@ const Notes = () => {
   const [category, setCategory] = useState<Category>('personal');
   const [autoSaveTimer, setAutoSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    loadNotes();
-  }, []);
-
-  useEffect(() => {
-    filterAndSortNotes();
-  }, [notes, searchQuery, sortBy, categoryFilter]);
-
-  useEffect(() => {
-    if (isEditing && (title || content)) {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-      const timer = setTimeout(() => {
-        handleAutoSave();
-      }, 3000);
-      setAutoSaveTimer(timer);
-    }
-    return () => {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    };
-  }, [title, content, category, isEditing]);
-
   const loadNotes = async () => {
     try {
       const allNotes = await getAllNotes();
@@ -76,13 +55,14 @@ const Notes = () => {
     }
 
     switch (sortBy) {
-      case 'pinned':
+      case 'pinned': {
         const pinned = await getPinnedNotes();
         filtered = [
           ...pinned.filter((n) => filtered.some((f) => f.id === n.id)),
           ...filtered.filter((n) => !n.isPinned),
         ];
         break;
+      }
       case 'category':
         filtered.sort((a, b) => a.category.localeCompare(b.category));
         break;
@@ -113,6 +93,27 @@ const Notes = () => {
       }
     }
   };
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
+
+  useEffect(() => {
+    filterAndSortNotes();
+  }, [notes, searchQuery, sortBy, categoryFilter, filterAndSortNotes]);
+
+  useEffect(() => {
+    if (isEditing && (title || content)) {
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      const timer = setTimeout(() => {
+        handleAutoSave();
+      }, 3000);
+      setAutoSaveTimer(timer);
+    }
+    return () => {
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+    };
+  }, [title, content, category, isEditing, autoSaveTimer, handleAutoSave]);
 
   const handleCreateNote = async () => {
     try {

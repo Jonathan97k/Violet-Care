@@ -42,6 +42,37 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+[data-theme="lavender"] body {
+  background: radial-gradient(ellipse at top, #f5f3ff 0%, #ede9fe 60%, #faf9ff 100%);
+  color: #2e1065;
+}
+
+[data-theme="lavender"] .glass-card {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+[data-theme="lavender"] .text-white {
+  color: #2e1065;
+}
+
+[data-theme="lavender"] .text-white\/50,
+[data-theme="lavender"] .text-white\/60,
+[data-theme="lavender"] .text-white\/70,
+[data-theme="lavender"] .text-white\/80 {
+  color: rgba(46, 16, 101, 0.65);
+}
+
+[data-theme="lavender"] .bg-gradient-violet {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+}
+
+[data-theme="lavender"] .bottom-nav {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.15);
 }
 
 /* Shell width is a single source of truth, used by shell + bottom-nav + FAB. */

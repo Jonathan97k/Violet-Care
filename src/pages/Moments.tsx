@@ -14,13 +14,17 @@ import {
   getAllPhotos,
   getSetting,
   setSetting,
+  addMilestone,
+  deleteMilestone,
+  getAllMilestones,
 } from '../utils/db';
-import type { Moment as MomentType, Countdown, Photo } from '../types';
+import type { Moment as MomentType, Countdown, Photo, Milestone } from '../types';
 
 const ANNIVERSARY_KEY = 'app.anniversary';
 
 const Moments = () => {
-  const [tab, setTab] = useState<'timeline' | 'countdowns' | 'photos'>('timeline');
+  const [tab, setTab] = useState<'timeline' | 'countdowns' | 'photos' | 'milestones'>('timeline');
+  const [nextDate, setNextDate] = useState<{ name: string; date: string } | null>(null);
   const [anniversary, setAnniversary] = useState<string>('');
   const [editingAnn, setEditingAnn] = useState(false);
   const [annDraft, setAnnDraft] = useState('');
@@ -31,6 +35,14 @@ const Moments = () => {
       if (s?.value) {
         setAnniversary(String(s.value));
         setAnnDraft(String(s.value));
+      }
+    });
+    getSetting('nextDate').then((s) => {
+      if (s?.value) {
+        try {
+          const parsed = JSON.parse(String(s.value));
+          if (parsed.name && parsed.date) setNextDate(parsed);
+        } catch { /* ignore */ }
       }
     });
   }, []);
@@ -59,6 +71,9 @@ const Moments = () => {
           <p className="text-white/60 text-sm font-dm-sans">A timeline of what matters</p>
         </div>
       </motion.div>
+
+      {/* Next Date Countdown */}
+      {nextDate && <NextDateCountdown data={nextDate} />}
 
       {/* Anniversary hero */}
       {anniversary && !editingAnn ? (
@@ -92,6 +107,7 @@ const Moments = () => {
           ['timeline', 'Timeline'],
           ['countdowns', 'Countdowns'],
           ['photos', 'Photos'],
+          ['milestones', 'Milestones'],
         ] as const).map(([id, label]) => (
           <button
             key={id}
@@ -118,11 +134,41 @@ const Moments = () => {
           {tab === 'timeline' && <Timeline />}
           {tab === 'countdowns' && <Countdowns />}
           {tab === 'photos' && <Photos />}
+          {tab === 'milestones' && <Milestones />}
         </motion.div>
       </AnimatePresence>
     </div>
   );
 };
+
+function NextDateCountdown({ data }: { data: { name: string; date: string } }) {
+  const [days, setDays] = useState(0);
+
+  useEffect(() => {
+    const calc = () => {
+      const target = new Date(data.date);
+      const now = new Date();
+      target.setHours(0, 0, 0, 0);
+      now.setHours(0, 0, 0, 0);
+      setDays(Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    };
+    calc();
+    const t = setInterval(calc, 1000 * 60 * 60);
+    return () => clearInterval(t);
+  }, [data]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="relative rounded-3xl p-6 mb-5 bg-gradient-to-br from-rose-400/30 via-violet-500/30 to-rose-300/30 border border-white/15 backdrop-blur-xl shadow-[0_8px_40px_rgba(251,113,133,0.25)] overflow-hidden"
+    >
+      <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-rose-300/30 blur-3xl" />
+      <p className="text-white/70 text-xs uppercase tracking-widest">{days <= 0 ? 'Today is the day! 💜' : `${days} day${days === 1 ? '' : 's'} until`}</p>
+      <p className="text-white font-playfair text-3xl mt-2">{data.name}</p>
+    </motion.div>
+  );
+}
 
 function AnniversaryHero({ date, onEdit }: { date: string; onEdit: () => void }) {
   const start = new Date(date);
@@ -198,6 +244,7 @@ function Timeline() {
 
   useEffect(() => {
     refresh();
+     
   }, []);
 
   const save = async () => {
@@ -345,6 +392,7 @@ function Countdowns() {
 
   useEffect(() => {
     refresh();
+     
   }, []);
 
   const save = async () => {
@@ -471,6 +519,7 @@ function Photos() {
 
   useEffect(() => {
     refresh();
+     
   }, []);
 
   const onFile = (file: File) => {
@@ -618,6 +667,116 @@ function Photos() {
               </button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ------------------------------- Milestones ----------------------------- */
+
+function Milestones() {
+  const [items, setItems] = useState<Milestone[]>([]);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], description: '', emoji: '' });
+
+  const refresh = async () => {
+    const all = await getAllMilestones();
+    setItems(all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
+  };
+
+  useEffect(() => {
+    refresh();
+     
+  }, []);
+
+  const save = async () => {
+    if (!form.title.trim()) return;
+    const m: Milestone = {
+      id: crypto.randomUUID(),
+      date: form.date,
+      title: form.title.trim(),
+      description: form.description.trim(),
+      emoji: form.emoji.trim() || '💜',
+      addedBy: 'violet',
+      createdAt: new Date().toISOString(),
+    };
+    await addMilestone(m);
+    setForm({ title: '', date: new Date().toISOString().split('T')[0], description: '', emoji: '' });
+    setOpen(false);
+    refresh();
+  };
+
+  const remove = async (id: string) => {
+    await deleteMilestone(id);
+    refresh();
+  };
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(true)}
+        className="w-full mb-4 flex items-center justify-center gap-2 py-3 rounded-2xl bg-violet-500/20 border border-violet-400/40 text-white"
+      >
+        <Plus size={16} /> Add milestone
+      </button>
+
+      {items.length === 0 ? (
+        <div className="glass-card p-6 text-center">
+          <p className="text-white/60 italic">Your journey together is just beginning 💜</p>
+        </div>
+      ) : (
+        <div className="relative pl-6">
+          <div className="absolute left-2 top-2 bottom-2 w-px bg-gradient-to-b from-violet-400/60 via-rose-300/40 to-transparent" />
+          {items.map((m, i) => (
+            <motion.div
+              key={m.id}
+              initial={{ opacity: 0, x: i % 2 === 0 ? -10 : 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.04 }}
+              className={`relative mb-4 ${i % 2 === 0 ? '' : 'ml-4'}`}
+            >
+              <div className="absolute -left-[18px] top-3 w-3 h-3 rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,0.7)]" />
+              <div className="glass-card p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-lg">{m.emoji}</span>
+                      {m.addedBy === 'admin' ? (
+                        <span className="text-[10px] text-rose-300">💜</span>
+                      ) : (
+                        <span className="text-[10px] text-violet-300">✨</span>
+                      )}
+                    </div>
+                    <p className="text-white/50 text-xs">
+                      {new Date(m.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                    <p className="text-white font-medium mt-1">{m.title}</p>
+                    {m.description && <p className="text-white/70 text-sm mt-1">{m.description}</p>}
+                  </div>
+                  <button onClick={() => remove(m.id)} className="p-2 text-white/40 hover:text-rose-300">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      <AnimatePresence>
+        {open && (
+          <BottomSheet onClose={() => setOpen(false)} title="New milestone">
+            <div className="space-y-3">
+              <input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full" />
+              <div className="grid grid-cols-3 gap-3">
+                <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="col-span-2" />
+                <input placeholder="💜" maxLength={2} value={form.emoji} onChange={(e) => setForm({ ...form, emoji: e.target.value })} className="text-center text-xl" />
+              </div>
+              <textarea rows={3} placeholder="What made it special?" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full resize-none" />
+              <button onClick={save} className="w-full py-3 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white font-medium">Save</button>
+            </div>
+          </BottomSheet>
         )}
       </AnimatePresence>
     </div>

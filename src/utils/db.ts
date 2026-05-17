@@ -17,7 +17,36 @@ import type {
   StressEntry,
   PatientNote,
   ClinicalReference,
+  Letter,
+  MonthlyLetter,
+  Milestone,
+  Ping,
+  LostModeData,
 } from '../types';
+
+// Simple obfuscation for sensitive text fields
+// Not cryptographic — just prevents casual reading
+function obfuscate(text: string): string {
+  return btoa(
+    encodeURIComponent(text)
+      .split('')
+      .map((c, i) => String.fromCharCode(
+        c.charCodeAt(0) ^ (7 + (i % 13))
+      ))
+      .join('')
+  );
+}
+
+function deobfuscate(encoded: string): string {
+  return decodeURIComponent(
+    atob(encoded)
+      .split('')
+      .map((c, i) => String.fromCharCode(
+        c.charCodeAt(0) ^ (7 + (i % 13))
+      ))
+      .join('')
+  );
+}
 
 interface VioletCareDB extends DBSchema {
   shifts: {
@@ -91,6 +120,26 @@ interface VioletCareDB extends DBSchema {
     value: ClinicalReference;
     indexes: { 'by-category': string };
   };
+  letters: {
+    key: string;
+    value: Letter;
+  };
+  monthlyLetters: {
+    key: string;
+    value: MonthlyLetter;
+  };
+  milestones: {
+    key: string;
+    value: Milestone;
+  };
+  pings: {
+    key: string;
+    value: Ping;
+  };
+  lostModeData: {
+    key: string;
+    value: LostModeData;
+  };
 }
 
 let db: IDBPDatabase<VioletCareDB> | null = null;
@@ -98,7 +147,7 @@ let db: IDBPDatabase<VioletCareDB> | null = null;
 export async function getDB(): Promise<IDBPDatabase<VioletCareDB>> {
   if (db) return db;
 
-  db = await openDB<VioletCareDB>('violetcare', 1, {
+  db = await openDB<VioletCareDB>('violetcare', 2, {
     upgrade(db) {
       // Shifts store
       if (!db.objectStoreNames.contains('shifts')) {
@@ -186,6 +235,31 @@ export async function getDB(): Promise<IDBPDatabase<VioletCareDB>> {
         const refStore = db.createObjectStore('clinical_references', { keyPath: 'id' });
         refStore.createIndex('by-category', 'category');
       }
+
+      // Letters store
+      if (!db.objectStoreNames.contains('letters')) {
+        db.createObjectStore('letters', { keyPath: 'id' });
+      }
+
+      // Monthly letters store
+      if (!db.objectStoreNames.contains('monthlyLetters')) {
+        db.createObjectStore('monthlyLetters', { keyPath: 'id' });
+      }
+
+      // Milestones store
+      if (!db.objectStoreNames.contains('milestones')) {
+        db.createObjectStore('milestones', { keyPath: 'id' });
+      }
+
+      // Pings store
+      if (!db.objectStoreNames.contains('pings')) {
+        db.createObjectStore('pings', { keyPath: 'id' });
+      }
+
+      // Lost mode data store
+      if (!db.objectStoreNames.contains('lostModeData')) {
+        db.createObjectStore('lostModeData', { keyPath: 'key' });
+      }
     },
   });
 
@@ -227,12 +301,14 @@ export async function getShiftsByDateRange(startDate: string, endDate: string): 
 // Note operations
 export async function addNote(note: Note): Promise<void> {
   const db = await getDB();
-  await db.add('notes', note);
+  const obfuscated = { ...note, content: obfuscate(note.content) };
+  await db.add('notes', obfuscated);
 }
 
 export async function updateNote(note: Note): Promise<void> {
   const db = await getDB();
-  await db.put('notes', note);
+  const obfuscated = { ...note, content: obfuscate(note.content) };
+  await db.put('notes', obfuscated);
 }
 
 export async function deleteNote(id: string): Promise<void> {
@@ -242,23 +318,29 @@ export async function deleteNote(id: string): Promise<void> {
 
 export async function getNote(id: string): Promise<Note | undefined> {
   const db = await getDB();
-  return db.get('notes', id);
+  const result = await db.get('notes', id);
+  if (result) {
+    return { ...result, content: deobfuscate(result.content) };
+  }
+  return result;
 }
 
 export async function getAllNotes(): Promise<Note[]> {
   const db = await getDB();
-  return db.getAll('notes');
+  const all = await db.getAll('notes');
+  return all.map(n => ({ ...n, content: deobfuscate(n.content) }));
 }
 
 export async function getPinnedNotes(): Promise<Note[]> {
   const db = await getDB();
   const allNotes = await db.getAll('notes');
-  return allNotes.filter(note => note.isPinned);
+  return allNotes.filter(note => note.isPinned).map(n => ({ ...n, content: deobfuscate(n.content) }));
 }
 
 export async function getNotesByCategory(category: string): Promise<Note[]> {
   const db = await getDB();
-  return db.getAllFromIndex('notes', 'by-category', category);
+  const all = await db.getAllFromIndex('notes', 'by-category', category);
+  return all.map(n => ({ ...n, content: deobfuscate(n.content) }));
 }
 
 // Medication operations
@@ -362,17 +444,23 @@ export async function getRecentSleep(days: number): Promise<SleepEntry[]> {
 // Journal operations
 export async function setJournal(entry: JournalEntry): Promise<void> {
   const db = await getDB();
-  await db.put('journal', entry);
+  const obfuscated = { ...entry, content: obfuscate(entry.content) };
+  await db.put('journal', obfuscated);
 }
 
 export async function getJournal(date: string): Promise<JournalEntry | undefined> {
   const db = await getDB();
-  return db.get('journal', date);
+  const result = await db.get('journal', date);
+  if (result) {
+    return { ...result, content: deobfuscate(result.content) };
+  }
+  return result;
 }
 
 export async function getAllJournalEntries(): Promise<JournalEntry[]> {
   const db = await getDB();
-  return db.getAll('journal');
+  const all = await db.getAll('journal');
+  return all.map(j => ({ ...j, content: deobfuscate(j.content) }));
 }
 
 // Moment operations
@@ -576,6 +664,141 @@ export async function getAllClinicalReferences(): Promise<ClinicalReference[]> {
 export async function getClinicalReferencesByCategory(category: string): Promise<ClinicalReference[]> {
   const db = await getDB();
   return db.getAllFromIndex('clinical_references', 'by-category', category);
+}
+
+// Letters operations
+export async function addLetter(letter: Letter): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...letter, content: obfuscate(letter.content) };
+  await db.add('letters', obfuscated);
+}
+
+export async function updateLetter(letter: Letter): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...letter, content: obfuscate(letter.content) };
+  await db.put('letters', obfuscated);
+}
+
+export async function deleteLetter(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('letters', id);
+}
+
+export async function getLetter(id: string): Promise<Letter | undefined> {
+  const db = await getDB();
+  const result = await db.get('letters', id);
+  if (result) {
+    return { ...result, content: deobfuscate(result.content) };
+  }
+  return result;
+}
+
+export async function getAllLetters(): Promise<Letter[]> {
+  const db = await getDB();
+  const all = await db.getAll('letters');
+  return all.map(l => ({ ...l, content: deobfuscate(l.content) }));
+}
+
+// Monthly letters operations
+export async function addMonthlyLetter(letter: MonthlyLetter): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...letter, content: obfuscate(letter.content) };
+  await db.add('monthlyLetters', obfuscated);
+}
+
+export async function updateMonthlyLetter(letter: MonthlyLetter): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...letter, content: obfuscate(letter.content) };
+  await db.put('monthlyLetters', obfuscated);
+}
+
+export async function deleteMonthlyLetter(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('monthlyLetters', id);
+}
+
+export async function getMonthlyLetter(id: string): Promise<MonthlyLetter | undefined> {
+  const db = await getDB();
+  const result = await db.get('monthlyLetters', id);
+  if (result) {
+    return { ...result, content: deobfuscate(result.content) };
+  }
+  return result;
+}
+
+export async function getAllMonthlyLetters(): Promise<MonthlyLetter[]> {
+  const db = await getDB();
+  const all = await db.getAll('monthlyLetters');
+  return all.map(l => ({ ...l, content: deobfuscate(l.content) }));
+}
+
+// Milestones operations
+export async function addMilestone(milestone: Milestone): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...milestone, description: obfuscate(milestone.description) };
+  await db.add('milestones', obfuscated);
+}
+
+export async function deleteMilestone(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('milestones', id);
+}
+
+export async function getAllMilestones(): Promise<Milestone[]> {
+  const db = await getDB();
+  const all = await db.getAll('milestones');
+  return all.map(m => ({ ...m, description: deobfuscate(m.description) }));
+}
+
+// Pings operations
+export async function addPing(ping: Ping): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...ping, message: obfuscate(ping.message) };
+  await db.add('pings', obfuscated);
+}
+
+export async function updatePing(ping: Ping): Promise<void> {
+  const db = await getDB();
+  const obfuscated = { ...ping, message: obfuscate(ping.message) };
+  await db.put('pings', obfuscated);
+}
+
+export async function deletePing(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('pings', id);
+}
+
+export async function getAllPings(): Promise<Ping[]> {
+  const db = await getDB();
+  const all = await db.getAll('pings');
+  return all.map(p => ({ ...p, message: deobfuscate(p.message) }));
+}
+
+// Lost mode data operations
+export async function setLostModeData(key: string, value: string): Promise<void> {
+  const db = await getDB();
+  await db.put('lostModeData', { key, value });
+}
+
+export async function getAllLostModeData(): Promise<LostModeData[]> {
+  const db = await getDB();
+  return db.getAll('lostModeData');
+}
+
+export async function addLostModeData(data: LostModeData): Promise<void> {
+  const db = await getDB();
+  await db.put('lostModeData', data);
+}
+
+export async function getLostModeData(key: string): Promise<string | undefined> {
+  const db = await getDB();
+  const result = await db.get('lostModeData', key);
+  return result?.value;
+}
+
+export async function deleteLostModeData(key: string): Promise<void> {
+  const db = await getDB();
+  await db.delete('lostModeData', key);
 }
 
 // Clear all data (for reset functionality)

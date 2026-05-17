@@ -9,6 +9,9 @@ export interface Shift {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  completed?: boolean;
+  completedAt?: string;
+  remindersEnabled?: boolean;
 }
 
 // Note Types
@@ -175,4 +178,48 @@ export interface BreathingSession {
   date: string;
   cycles: number;
   completedAt: string;
+}
+
+// Letter Box Types
+export interface Letter {
+  id: string;
+  title: string;
+  content: string;
+  unlockDate: string; // YYYY-MM-DD
+  isRevealed: boolean;
+  revealedAt?: string;
+}
+
+// Monthly Letter Types
+export interface MonthlyLetter {
+  id: string;
+  month: number; // 1-12
+  year: number;
+  content: string;
+  isRead: boolean;
+}
+
+// Milestone Types
+export interface Milestone {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  description: string;
+  emoji: string;
+  addedBy: 'admin' | 'violet';
+  createdAt: string;
+}
+
+// Ping Types
+export interface Ping {
+  id: string;
+  message: string;
+  timestamp: string;
+  seen: boolean;
+}
+
+// Lost Mode Data Types
+export interface LostModeData {
+  key: string;
+  value: string;
 }

@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Bell, Heart, Trash2, Info } from 'lucide-react';
+import { User, Bell, Heart, Trash2, Info, Moon, Sun, CalendarDays } from 'lucide-react';
 import { track } from '../utils/track';
 import { getSetting, setSetting, clearAllData } from '../utils/db';
+import { getTheme, setTheme } from '../utils/theme';
+import type { Theme } from '../utils/theme';
+import { haptics } from '../utils/haptics';
 
 const NOTIF_KEYS = [
   ['shiftReminders', 'Shift reminders'],
@@ -16,7 +19,10 @@ const Profile = () => {
   const [name, setName] = useState('Violet');
   const [photo, setPhoto] = useState<string>('');
   const [anniversary, setAnniversary] = useState('');
+  const [nextDateName, setNextDateName] = useState('');
+  const [nextDateValue, setNextDateValue] = useState('');
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
+  const [theme, setThemeState] = useState<Theme>('dark');
   const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
@@ -28,6 +34,16 @@ const Profile = () => {
       if (p?.value) setPhoto(String(p.value));
       const a = await getSetting('app.anniversary');
       if (a?.value) setAnniversary(String(a.value));
+      const nd = await getSetting('nextDate');
+      if (nd?.value) {
+        try {
+          const parsed = JSON.parse(String(nd.value));
+          setNextDateName(parsed.name || '');
+          setNextDateValue(parsed.date || '');
+        } catch { /* ignore */ }
+      }
+      const t = await getTheme();
+      setThemeState(t);
       const next: Record<string, boolean> = {};
       for (const [key] of NOTIF_KEYS) {
         const r = await getSetting(`notif.${key}`);
@@ -36,6 +52,19 @@ const Profile = () => {
       setPrefs(next);
     })();
   }, []);
+
+  const toggleTheme = async () => {
+    const next = theme === 'dark' ? 'lavender' : 'dark';
+    await setTheme(next);
+    setThemeState(next);
+    haptics.medium();
+  };
+
+  const saveNextDate = async () => {
+    if (nextDateName && nextDateValue) {
+      await setSetting('nextDate', JSON.stringify({ name: nextDateName, date: nextDateValue }));
+    }
+  };
 
   const saveName = async () => {
     await setSetting('profile.name', name);
@@ -126,6 +155,36 @@ const Profile = () => {
             onChange={(e) => saveAnniversary(e.target.value)}
             className="w-full"
           />
+        </div>
+
+        <div className="mt-5">
+          <p className="text-white/60 text-xs uppercase tracking-widest mb-1 flex items-center gap-1">
+            <CalendarDays size={12} /> Next Date
+          </p>
+          <input
+            placeholder="What are you counting down to?"
+            value={nextDateName}
+            onChange={(e) => setNextDateName(e.target.value)}
+            onBlur={saveNextDate}
+            className="w-full mb-2"
+          />
+          <input
+            type="date"
+            value={nextDateValue}
+            onChange={(e) => { setNextDateValue(e.target.value); saveNextDate(); }}
+            className="w-full"
+          />
+        </div>
+
+        <div className="mt-5">
+          <p className="text-white/60 text-xs uppercase tracking-widest mb-1">Appearance</p>
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 border border-white/15 text-white text-sm hover:bg-white/15 transition-colors"
+          >
+            {theme === 'dark' ? <Moon size={16} className="text-violet-300" /> : <Sun size={16} className="text-rose-300" />}
+            {theme === 'dark' ? 'Dark mode' : 'Lavender mode'}
+          </button>
         </div>
       </div>
 

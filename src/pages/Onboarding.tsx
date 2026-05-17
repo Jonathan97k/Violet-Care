@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { setupPIN, markSetupComplete, isBiometricAvailable, registerBiometric } from '../utils/auth';
+import AffirmationOverlay from '../components/shared/AffirmationOverlay';
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -10,8 +11,7 @@ const Onboarding = () => {
   const [confirmPin, setConfirmPin] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [_biometricRegistered, setBiometricRegistered] = useState(false);
-  const [_showConfetti, setShowConfetti] = useState(false);
+  const [showAffirmation, setShowAffirmation] = useState(false);
 
   const pageVariants = {
     initial: { opacity: 0, x: 50 },
@@ -42,19 +42,17 @@ const Onboarding = () => {
     try {
       await setupPIN(pin);
       if (useBiometric && biometricAvailable) {
-        const success = await registerBiometric();
-        setBiometricRegistered(success);
+        await registerBiometric();
       }
       await markSetupComplete();
       setStep(4);
-      setShowConfetti(true);
-    } catch (err) {
+    } catch {
       setError('Failed to setup. Please try again.');
     }
   };
 
   const handleFinish = () => {
-    navigate('/');
+    setShowAffirmation(true);
   };
 
   const renderStep1 = () => (
@@ -308,6 +306,10 @@ const Onboarding = () => {
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
       </AnimatePresence>
+
+      {showAffirmation && (
+        <AffirmationOverlay onComplete={() => navigate('/')} />
+      )}
     </div>
   );
 };

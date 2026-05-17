@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Shift } from '../../types';
 import { shiftTypes } from '../../data/shiftTypes';
@@ -19,25 +19,30 @@ const AddShiftModal = ({ isOpen, onClose, onSave, editingShift, selectedDate }: 
   const [type, setType] = useState<'day' | 'night' | 'on-call' | 'training' | 'off'>('day');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const prevEditingShiftRef = useRef<Shift | null | undefined>(null);
 
   useEffect(() => {
     if (isOpen) {
-      if (editingShift) {
-        setDate(editingShift.date);
-        setStartTime(editingShift.startTime);
-        setEndTime(editingShift.endTime);
-        setWard(editingShift.ward || '');
-        setType(editingShift.type);
-        setNotes(editingShift.notes || '');
-      } else {
-        setDate(selectedDate.toISOString().split('T')[0]);
-        setStartTime('09:00');
-        setEndTime('17:00');
-        setWard('');
-        setType('day');
-        setNotes('');
+      const needsUpdate = prevEditingShiftRef.current !== editingShift;
+      if (needsUpdate || !date) {
+        if (editingShift) {
+          setDate(editingShift.date);
+          setStartTime(editingShift.startTime);
+          setEndTime(editingShift.endTime);
+          setWard(editingShift.ward || '');
+          setType(editingShift.type);
+          setNotes(editingShift.notes || '');
+        } else {
+          setDate(selectedDate.toISOString().split('T')[0]);
+          setStartTime('09:00');
+          setEndTime('17:00');
+          setWard('');
+          setType('day');
+          setNotes('');
+        }
       }
       setError(null);
+      prevEditingShiftRef.current = editingShift;
     }
   }, [isOpen, editingShift, selectedDate]);
 

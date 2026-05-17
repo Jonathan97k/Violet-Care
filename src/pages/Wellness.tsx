@@ -214,6 +214,7 @@ function Mood() {
 
   useEffect(() => {
     refresh();
+     
   }, []);
 
   const log = async (level: 1 | 2 | 3 | 4 | 5) => {
@@ -320,6 +321,7 @@ function Sleep() {
 
   useEffect(() => {
     refresh();
+     
   }, []);
 
   const calcHours = () => {

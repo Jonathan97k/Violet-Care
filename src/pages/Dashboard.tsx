@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Stethoscope, Droplets, FileText, Mail, Sparkles, Heart, User } from 'lucide-react';
+import { Calendar, Stethoscope, Droplets, FileText, Mail, Sparkles, Heart, User, Briefcase } from 'lucide-react';
 import WellnessRing from '../components/shared/WellnessRing';
 import QuoteCard from '../components/shared/QuoteCard';
 import UpcomingReminders from '../components/shared/UpcomingReminders';
@@ -9,12 +9,15 @@ import { track } from '../utils/track';
 import { getHydration, getMood, getSleep, getSetting } from '../utils/db';
 import { getAllShifts } from '../utils/db';
 import { getAllNotes } from '../utils/db';
+import { haptics } from '../utils/haptics';
+import type { Shift } from '../types';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
   const [wellnessScore, setWellnessScore] = useState(0);
   const [nextShift, setNextShift] = useState<string>('');
+  const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [totalNotes, setTotalNotes] = useState(0);
   const [profilePhoto, setProfilePhoto] = useState('');
 
@@ -63,16 +66,30 @@ const Dashboard = () => {
       try {
         const shifts = await getAllShifts();
         const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+
+        // Find active shift
+        const active = shifts.find((s) => {
+          if (s.date !== todayStr) return false;
+          const [sh, sm] = s.startTime.split(':').map(Number);
+          const [eh, em] = s.endTime.split(':').map(Number);
+          const nowM = today.getHours() * 60 + today.getMinutes();
+          const startM = sh * 60 + sm;
+          const endM = eh * 60 + em;
+          return nowM >= startM && nowM <= endM;
+        });
+        setActiveShift(active || null);
+
         const upcomingShifts = shifts.filter(
           (shift) => new Date(shift.date) >= today
         );
-        
+
         if (upcomingShifts.length > 0) {
           const next = upcomingShifts[0];
           const shiftDate = new Date(next.date);
           const tomorrow = new Date(today);
           tomorrow.setDate(tomorrow.getDate() + 1);
-          
+
           if (shiftDate.toDateString() === tomorrow.toDateString()) {
             setNextShift('Tomorrow');
           } else {
@@ -122,6 +139,7 @@ const Dashboard = () => {
   };
 
   const handleQuickCardClick = (cardName: string, path: string) => {
+    haptics.light();
     track('Dashboard', cardName);
     navigate(path);
   };
@@ -217,6 +235,30 @@ const Dashboard = () => {
           </button>
         </div>
       </motion.div>
+
+      {activeShift && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4"
+        >
+          <button
+            onClick={() => navigate('/planner')}
+            className="w-full text-left rounded-2xl p-4 bg-gradient-to-r from-violet-500/30 to-rose-400/20 border border-violet-300/40 backdrop-blur-xl flex items-center gap-3"
+          >
+            <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center">
+              <Briefcase size={18} className="text-violet-300" />
+            </div>
+            <div>
+              <p className="text-white/70 text-xs uppercase tracking-widest">On shift now</p>
+              <p className="text-white font-medium text-sm">
+                {activeShift.startTime} — {activeShift.endTime}
+                {activeShift.ward ? ` · ${activeShift.ward}` : ''}
+              </p>
+            </div>
+          </button>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}

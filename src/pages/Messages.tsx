@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Heart, Lock, Sparkles, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Heart, Lock, Sparkles, X, Bell } from 'lucide-react';
 import { messages } from '../data/messages';
 import { track } from '../utils/track';
-import { getSetting, setSetting } from '../utils/db';
+import { getSetting, setSetting, getAllMonthlyLetters, updateMonthlyLetter, getAllPings, updatePing } from '../utils/db';
+import type { MonthlyLetter, Ping } from '../types';
+import { haptics } from '../utils/haptics';
 
 const REVEALED_KEY = 'messages.revealed';
 const DAILY_INDEX_KEY = 'messages.dailyIndex';
@@ -14,12 +17,16 @@ function todayStr() {
 }
 
 const Messages = () => {
+  const navigate = useNavigate();
   const [revealed, setRevealed] = useState<number[]>([]);
   const [dailyIdx, setDailyIdx] = useState<number>(0);
   const [dailyOpen, setDailyOpen] = useState(false);
   const [activeMsg, setActiveMsg] = useState<number | null>(null);
   const [boost, setBoost] = useState<string | null>(null);
   const [petals, setPetals] = useState(false);
+  const [monthlyLetter, setMonthlyLetter] = useState<MonthlyLetter | null>(null);
+  const [monthlyOpen, setMonthlyOpen] = useState(false);
+  const [pings, setPings] = useState<Ping[]>([]);
 
   useEffect(() => {
     track('Messages', 'opened');
@@ -40,8 +47,36 @@ const Messages = () => {
         await setSetting(DAILY_DATE_KEY, todayKey);
         await setSetting(DAILY_INDEX_KEY, idx);
       }
+
+      // Load monthly letter for current month
+      const now = new Date();
+      const allMonthly = await getAllMonthlyLetters();
+      const current = allMonthly.find(
+        (l) => l.month === now.getMonth() + 1 && l.year === now.getFullYear()
+      );
+      if (current) setMonthlyLetter(current);
+
+      // Load pings
+      const allPings = await getAllPings();
+      setPings(allPings.filter((p) => !p.seen).slice(-5));
+      // Mark seen
+      for (const p of allPings.filter((p) => !p.seen)) {
+        await updatePing({ ...p, seen: true });
+      }
     })();
   }, []);
+
+  const openMonthly = async () => {
+    if (!monthlyLetter) return;
+    haptics.success();
+    track('Messages', 'monthly_letter_read');
+    const updated = { ...monthlyLetter, isRead: true };
+    await updateMonthlyLetter(updated);
+    setMonthlyLetter(updated);
+    setMonthlyOpen(true);
+    setPetals(true);
+    setTimeout(() => setPetals(false), 1800);
+  };
 
   const persistRevealed = async (next: number[]) => {
     setRevealed(next);
@@ -106,6 +141,68 @@ const Messages = () => {
         </h2>
         <p className="text-white/70 text-sm mt-2">Tap to reveal 💌</p>
       </motion.button>
+
+      {/* Monthly Letter */}
+      {monthlyLetter && (
+        <motion.button
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={openMonthly}
+          className={`w-full text-left rounded-3xl p-6 mb-5 border backdrop-blur-xl relative overflow-hidden transition-all ${
+            !monthlyLetter.isRead
+              ? 'bg-gradient-to-br from-rose-400/30 via-violet-500/20 to-rose-300/30 border-rose-300/40 shadow-[0_8px_40px_rgba(251,113,133,0.35)]'
+              : 'bg-gradient-to-br from-violet-500/20 via-rose-400/10 to-violet-700/20 border-white/15'
+          }`}
+        >
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-300/30 blur-3xl" />
+          <p className="text-white/70 text-xs uppercase tracking-widest">This Month's Letter 💜</p>
+          <h2 className="text-white font-playfair text-xl mt-2 leading-snug">
+            {monthlyLetter.isRead ? 'Read this month' : 'A new letter is here'}
+          </h2>
+          <p className="text-white/70 text-sm mt-2">
+            {monthlyLetter.isRead ? 'Tap to read again' : 'Tap to open 💌'}
+          </p>
+          {!monthlyLetter.isRead && (
+            <span className="absolute top-4 right-4 w-3 h-3 rounded-full bg-rose-400 animate-pulse" />
+          )}
+        </motion.button>
+      )}
+
+      {/* LetterBox link */}
+      <motion.button
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        onClick={() => navigate('/letterbox')}
+        className="w-full text-left rounded-3xl p-5 mb-5 bg-gradient-to-br from-violet-500/20 via-rose-400/10 to-violet-700/20 border border-white/15 backdrop-blur-xl flex items-center gap-4"
+      >
+        <div className="w-10 h-10 rounded-xl bg-violet-500/20 border border-violet-400/30 flex items-center justify-center">
+          <Mail size={18} className="text-violet-300" />
+        </div>
+        <div>
+          <p className="text-white font-medium text-sm">Letters for You 💜</p>
+          <p className="text-white/50 text-xs">Sealed messages waiting to be opened</p>
+        </div>
+      </motion.button>
+
+      {/* Pings */}
+      {pings.length > 0 && (
+        <div className="mb-5 space-y-2">
+          <p className="text-white/70 text-xs uppercase tracking-widest flex items-center gap-1">
+            <Bell size={12} /> Thinking of you
+          </p>
+          {pings.map((ping) => (
+            <motion.div
+              key={ping.id}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3 rounded-2xl bg-rose-400/15 border border-rose-300/30 backdrop-blur-xl"
+            >
+              <p className="text-white text-sm">{ping.message}</p>
+              <p className="text-white/40 text-[10px] mt-1">from him 💜</p>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       {/* Boost button */}
       <button
@@ -181,34 +278,54 @@ const Messages = () => {
             message={boost}
           />
         )}
+        {monthlyOpen && monthlyLetter && (
+          <MessageModal
+            onClose={() => setMonthlyOpen(false)}
+            title="This month's letter 💜"
+            message={monthlyLetter.content}
+          />
+        )}
       </AnimatePresence>
 
       {/* Petals */}
       <AnimatePresence>
-        {petals && (
-          <div className="fixed inset-0 pointer-events-none z-[60]">
-            {Array.from({ length: 14 }).map((_, i) => (
-              <motion.div
-                key={i}
-                initial={{ y: -20, x: Math.random() * window.innerWidth, opacity: 1, rotate: 0 }}
-                animate={{
-                  y: window.innerHeight + 40,
-                  rotate: 360,
-                  opacity: 0,
-                }}
-                transition={{ duration: 1.6 + Math.random(), ease: 'easeIn' }}
-                className="absolute w-3 h-3 rounded-full bg-rose-300"
-                style={{
-                  boxShadow: '0 0 10px rgba(251,113,133,0.6)',
-                }}
-              />
-            ))}
-          </div>
-        )}
+        {petals && <PetalAnimation />}
       </AnimatePresence>
     </div>
   );
 };
+
+function PetalAnimation() {
+  const petals = useMemo(() =>
+    Array.from({ length: 14 }).map((_, i) => ({
+      id: i,
+      startX: Math.random() * window.innerWidth,
+      duration: 1.6 + Math.random(),
+    })),
+    []
+  );
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[60]">
+      {petals.map((p) => (
+        <motion.div
+          key={p.id}
+          initial={{ y: -20, x: p.startX, opacity: 1, rotate: 0 }}
+          animate={{
+            y: window.innerHeight + 40,
+            rotate: 360,
+            opacity: 0,
+          }}
+          transition={{ duration: p.duration, ease: 'easeIn' }}
+          className="absolute w-3 h-3 rounded-full bg-rose-300"
+          style={{
+            boxShadow: '0 0 10px rgba(251,113,133,0.6)',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 function MessageModal({
   onClose,

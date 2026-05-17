@@ -4,6 +4,7 @@ import { getAuthData, setAuthData, deleteAuthData, getDB } from './db';
 const ADMIN_PIN_KEY = 'admin.pin';
 const ADMIN_SESSION_KEY = 'admin_session';
 const ADMIN_PIN_DEFAULT = '000000';
+const SESSION_DURATION = 2 * 60 * 60 * 1000; // 2 hours
 
 export async function ensureAdminPinSetup(): Promise<void> {
   const existing = await getAuthData(ADMIN_PIN_KEY);
@@ -29,11 +30,32 @@ export async function changeAdminPIN(current: string, next: string): Promise<boo
 }
 
 export function setAdminSession(): void {
-  sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+  sessionStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+    authenticated: true,
+    expiresAt: Date.now() + SESSION_DURATION
+  }));
+}
+
+export function checkAdminSession(): boolean {
+  const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+  if (!raw) return false;
+  const session = JSON.parse(raw);
+  if (Date.now() > session.expiresAt) {
+    clearAdminSession();
+    return false;
+  }
+  return session.authenticated === true;
 }
 
 export function isAdminSession(): boolean {
-  return sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true';
+  return checkAdminSession();
+}
+
+export function getSessionExpiry(): number | null {
+  const raw = sessionStorage.getItem(ADMIN_SESSION_KEY);
+  if (!raw) return null;
+  const session = JSON.parse(raw);
+  return session.expiresAt;
 }
 
 export function clearAdminSession(): void {

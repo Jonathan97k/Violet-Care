@@ -14,6 +14,21 @@ function shiftDurationHours(shift: Shift): number {
   return mins / 60;
 }
 
+const StatCard = ({ label, value, icon, delay }: { label: string; value: number; icon: string; delay: number }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ delay, duration: 0.3 }}
+    className="glass-card p-4 text-center"
+  >
+    <div className="text-3xl mb-2">{icon}</div>
+    <div className="text-2xl font-playfair font-semibold text-white mb-1">
+      {value}
+    </div>
+    <div className="text-violet-300 font-dm-sans text-sm">{label}</div>
+  </motion.div>
+);
+
 const ShiftStats = ({ shifts }: Props) => {
   const displayStats = useMemo(() => {
     const now = new Date();
@@ -39,21 +54,6 @@ const ShiftStats = ({ shifts }: Props) => {
       avgShiftLength: Math.round(avg * 10) / 10,
     };
   }, [shifts]);
-
-  const StatCard = ({ label, value, icon, delay }: { label: string; value: number; icon: string; delay: number }) => (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay, duration: 0.3 }}
-      className="glass-card p-4 text-center"
-    >
-      <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-2xl font-playfair font-semibold text-white mb-1">
-        {value}
-      </div>
-      <div className="text-violet-300 font-dm-sans text-sm">{label}</div>
-    </motion.div>
-  );
 
   return (
     <div className="space-y-6">
