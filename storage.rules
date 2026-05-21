@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User photos
+    match /users/{userId}/photos/{photoId} {
+      // Allow users to read/write their own photos
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Enforce size limit (10MB)
+      allow write: if request.resource.size < 10 * 1024 * 1024;
+      
+      // Only allow image files
+      allow write: if request.resource.contentType.matches('image/.*');
+    }
+    
+    // Admin can access all photos
+    match /users/{userId}/photos/{photoId} {
+      allow read: if request.auth != null && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+  }
+}

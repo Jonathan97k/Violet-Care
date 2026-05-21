@@ -1,9 +1,11 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
 import Auth from './pages/Auth';
+import EmailAuth from './pages/EmailAuth';
+import InstallPrompt from './pages/InstallPrompt';
 import Dashboard from './pages/Dashboard';
 import Planner from './pages/Planner';
 import Notes from './pages/Notes';
@@ -19,9 +21,11 @@ import OfflineIndicator from './components/shared/OfflineIndicator';
 import AIChat from './components/shared/AIChat';
 import { isAdminSession } from './utils/adminAuth';
 import { initTheme } from './utils/theme';
+import { getCurrentUser, verifyUserStatus, initFirebase } from './utils/firebase';
 
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const Admin = lazy(() => import('./pages/Admin'));
+const AdminUserManagement = lazy(() => import('./pages/AdminUserManagement'));
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -44,7 +48,31 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // TEMP: Bypass auth for development
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const user = await getCurrentUser();
+      const isActive = await verifyUserStatus();
+      setIsAuthenticated(!!user && isActive);
+      setIsChecking(false);
+    };
+    checkAuth();
+  }, []);
+
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-violet-950 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/email-auth" replace />;
+  }
+
   return <PageWrapper>{children}</PageWrapper>;
 }
 
@@ -54,11 +82,12 @@ function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   const location = useLocation();
-  const hideNavRoutes = ['/splash', '/auth', '/onboarding', '/admin-login', '/admin'];
+  const hideNavRoutes = ['/splash', '/auth', '/email-auth', '/install-prompt', '/onboarding', '/admin-login', '/admin', '/admin/users'];
   const showBottomNav = !hideNavRoutes.includes(location.pathname);
 
   useEffect(() => {
     initTheme();
+    initFirebase();
   }, []);
 
   return (
@@ -69,6 +98,8 @@ function App() {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/splash" element={<Splash />} />
+          <Route path="/email-auth" element={<EmailAuth />} />
+          <Route path="/install-prompt" element={<InstallPrompt />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/auth" element={<Auth />} />
           
@@ -184,6 +215,20 @@ function App() {
               }>
                 <AdminProtectedRoute>
                   <Admin />
+                </AdminProtectedRoute>
+              </Suspense>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <Suspense fallback={
+                <div className="min-h-screen bg-violet-950 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+                </div>
+              }>
+                <AdminProtectedRoute>
+                  <AdminUserManagement />
                 </AdminProtectedRoute>
               </Suspense>
             }

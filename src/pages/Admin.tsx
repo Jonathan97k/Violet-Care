@@ -19,6 +19,7 @@ import {
   Calendar,
   Bell,
   Shield,
+  Users,
 } from 'lucide-react';
 import {
   getAllPhotos, deletePhoto, addPhoto, getQueuedUsageEvents, getSetting, setSetting,
@@ -117,6 +118,7 @@ const Admin = () => {
       </motion.div>
 
       <div className="space-y-5">
+        <UserManagementLink />
         <PinManagement />
         <LostModePanel />
         <LetterManager />
@@ -129,6 +131,37 @@ const Admin = () => {
     </div>
   );
 };
+
+/* ========================= USER MANAGEMENT LINK ========================= */
+
+function UserManagementLink() {
+  const navigate = useNavigate();
+
+  return (
+    <section className="glass-card p-5 bg-gradient-to-br from-violet-500/10 to-purple-500/10 border-violet-400/30">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-violet-500/20 border border-violet-400/40 rounded-xl flex items-center justify-center">
+            <Users size={24} className="text-violet-300" />
+          </div>
+          <div>
+            <h2 className="text-white font-playfair text-lg">User Management</h2>
+            <p className="text-white/60 text-xs font-dm-sans mt-0.5">
+              Manage all app users and their access
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/admin/users')}
+          className="px-4 py-2.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-white text-sm font-medium flex items-center gap-2 transition-colors shadow-lg shadow-violet-500/30"
+        >
+          <Users size={16} />
+          View Users
+        </button>
+      </div>
+    </section>
+  );
+}
 
 /* ========================= PIN MANAGEMENT ========================= */
 
