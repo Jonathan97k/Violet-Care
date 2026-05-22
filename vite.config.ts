@@ -19,10 +19,52 @@ export default defineConfig(({ mode }) => {
         background_color: '#1a0533',
         display: 'standalone',
         orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        categories: ['health', 'lifestyle', 'productivity'],
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }
+        ],
+        screenshots: [
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            label: 'VioletCare Dashboard'
+          }
+        ],
+        share_target: {
+          action: '/share',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [
+              {
+                name: 'media',
+                accept: ['image/*', 'video/*']
+              }
+            ]
+          }
+        },
+        file_handlers: [
+          {
+            action: '/open',
+            accept: {
+              'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+            }
+          }
+        ],
+        protocol_handlers: [
+          {
+            protocol: 'web+violetcare',
+            url: '/?action=%s'
+          }
         ]
       },
       workbox: {
