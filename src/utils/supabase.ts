@@ -21,16 +21,19 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const ADMIN_EMAIL = 'kaphirij9@gmail.com';
 
-// Initialize Supabase client
+// Debug logging on module load
+console.log('[Supabase Init] URL configured:', !!SUPABASE_URL);
+console.log('[Supabase Init] Key configured:', !!SUPABASE_ANON_KEY);
+if (SUPABASE_URL) {
+  console.log('[Supabase Init] URL value:', SUPABASE_URL);
+}
+
+// Initialize Supabase client at module load time (eager initialization)
+// This ensures it's ready before any component tries to use it
 let supabase: SupabaseClient | null = null;
 
-export function initSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn('[Supabase] Missing environment variables. Auth features disabled.');
-    return null;
-  }
-
-  if (!supabase) {
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
@@ -38,20 +41,36 @@ export function initSupabase() {
         detectSessionInUrl: true,
       },
     });
-    console.log('[Supabase] Client initialized');
+    console.log('[Supabase] Client initialized successfully on module load');
+  } catch (err) {
+    console.error('[Supabase] Failed to initialize:', err);
   }
+} else {
+  console.error(
+    '[Supabase] CRITICAL: Missing environment variables!\n' +
+    '  VITE_SUPABASE_URL: ' + (SUPABASE_URL ? 'set' : 'MISSING') + '\n' +
+    '  VITE_SUPABASE_ANON_KEY: ' + (SUPABASE_ANON_KEY ? 'set' : 'MISSING') + '\n' +
+    'Make sure these are set in Vercel Environment Variables and you have redeployed.'
+  );
+}
+
+export function initSupabase() {
+  // Already initialized at module load. This is just a noop for backward compatibility.
   return supabase;
 }
 
 export function getSupabase(): SupabaseClient {
   if (!supabase) {
-    const client = initSupabase();
-    if (!client) {
-      throw new Error('Supabase client not initialized. Check your environment variables.');
-    }
-    return client;
+    throw new Error(
+      'Supabase is not configured. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY ' +
+      'environment variables are set in Vercel and the app has been redeployed.'
+    );
   }
   return supabase;
+}
+
+export function isSupabaseConfigured(): boolean {
+  return supabase !== null;
 }
 
 // ==================== Authentication ====================
