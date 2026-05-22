@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Download, Smartphone, Check, X, AlertCircle } from 'lucide-react';
+import { Download, Smartphone, Check, AlertCircle } from 'lucide-react';
 import { markDeviceAsInstalled, isAppInstalled, getCurrentUser, signOutUser } from '../utils/supabase';
 import { haptics } from '../utils/haptics';
 
@@ -14,7 +14,7 @@ const InstallPrompt = () => {
   const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalling, setIsInstalling] = useState(false);
-  const [canInstall, setCanInstall] = useState(false);
+  const [, setCanInstall] = useState(false);
   const [showManualInstructions, setShowManualInstructions] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
@@ -94,11 +94,6 @@ const InstallPrompt = () => {
     } finally {
       setIsInstalling(false);
     }
-  };
-
-  const handleSkipForNow = () => {
-    haptics.light();
-    // Show warning that app won't work without installation
   };
 
   const handleSignOut = async () => {

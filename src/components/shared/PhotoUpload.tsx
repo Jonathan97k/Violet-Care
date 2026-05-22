@@ -12,7 +12,7 @@ interface PhotoUploadProps {
 }
 
 const PhotoUpload = ({ onUploadComplete, caption = '', date, showInline = false }: PhotoUploadProps) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [photoCaption, setPhotoCaption] = useState(caption);
   const [photoDate, setPhotoDate] = useState(date || new Date().toISOString().split('T')[0]);
