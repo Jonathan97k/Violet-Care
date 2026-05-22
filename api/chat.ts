@@ -15,7 +15,8 @@ export default async function handler(req: Request) {
     );
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiKey = (globalThis as any).process?.env?.OPENROUTER_API_KEY;
 
   if (!apiKey) {
     return new Response(
@@ -65,14 +66,11 @@ export default async function handler(req: Request) {
         'Cache-Control': 'no-store',
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AI Chat error:', error);
+    const message = error instanceof Error ? error.message : 'Failed to process AI request';
     return new Response(
-      JSON.stringify({
-        error: {
-          message: error.message || 'Failed to process AI request',
-        },
-      }),
+      JSON.stringify({ error: { message } }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
