@@ -12,7 +12,7 @@ import {
   adminGetUserActivity,
   getCurrentUser,
   type UserProfile
-} from '../utils/firebase';
+} from '../utils/supabase';
 
 const AdminUserManagement = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -111,9 +111,9 @@ const AdminUserManagement = () => {
 
   const stats = {
     total: users.length,
-    active: users.filter(u => u.isActive).length,
-    inactive: users.filter(u => !u.isActive).length,
-    installed: users.filter(u => u.deviceInstalled).length,
+    active: users.filter(u => u.is_active).length,
+    inactive: users.filter(u => !u.is_active).length,
+    installed: users.filter(u => u.device_installed).length,
   };
 
   if (loading) {
@@ -237,7 +237,7 @@ const AdminUserManagement = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <Mail size={14} className="text-white/40" />
                       <p className="text-white text-sm font-medium">{user.email}</p>
-                      {user.isAdmin && (
+                      {user.is_admin && (
                         <span className="px-2 py-0.5 bg-violet-500/30 border border-violet-400/40 rounded-full text-[10px] text-violet-200 uppercase tracking-wider">
                           Admin
                         </span>
@@ -247,16 +247,16 @@ const AdminUserManagement = () => {
                     <div className="flex items-center gap-4 text-xs text-white/50 mt-2">
                       <div className="flex items-center gap-1">
                         <Calendar size={12} />
-                        <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
+                        <span>Joined {new Date(user.created_at).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock size={12} />
-                        <span>Last login {new Date(user.lastLoginAt).toLocaleDateString()}</span>
+                        <span>Last login {new Date(user.last_login_at).toLocaleDateString()}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 mt-2">
-                      {user.isActive ? (
+                      {user.is_active ? (
                         <span className="flex items-center gap-1 px-2 py-1 bg-emerald-500/20 border border-emerald-400/40 rounded-lg text-[10px] text-emerald-200">
                           <CheckCircle size={10} />
                           Active
@@ -267,7 +267,7 @@ const AdminUserManagement = () => {
                           Disabled
                         </span>
                       )}
-                      {user.deviceInstalled && (
+                      {user.device_installed && (
                         <span className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 border border-blue-400/40 rounded-lg text-[10px] text-blue-200">
                           <Smartphone size={10} />
                           Installed
@@ -283,9 +283,9 @@ const AdminUserManagement = () => {
                     >
                       <Eye size={16} />
                     </button>
-                    {!user.isAdmin && (
+                    {!user.is_admin && (
                       <>
-                        {user.isActive ? (
+                        {user.is_active ? (
                           <button
                             onClick={() => setShowConfirmDisable(user.uid)}
                             className="p-2 bg-rose-500/20 border border-rose-400/40 rounded-lg text-rose-300 hover:bg-rose-500/30 transition-colors"
@@ -357,19 +357,19 @@ const AdminUserManagement = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
                     <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Created</p>
-                    <p className="text-white text-sm">{new Date(selectedUser.createdAt).toLocaleString()}</p>
+                    <p className="text-white text-sm">{new Date(selectedUser.created_at).toLocaleString()}</p>
                   </div>
 
                   <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
                     <p className="text-white/60 text-xs uppercase tracking-wider mb-1">Last Login</p>
-                    <p className="text-white text-sm">{new Date(selectedUser.lastLoginAt).toLocaleString()}</p>
+                    <p className="text-white text-sm">{new Date(selectedUser.last_login_at).toLocaleString()}</p>
                   </div>
                 </div>
 
                 <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
                   <p className="text-white/60 text-xs uppercase tracking-wider mb-2">Status</p>
                   <div className="flex flex-wrap gap-2">
-                    {selectedUser.isActive ? (
+                    {selectedUser.is_active ? (
                       <span className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 border border-emerald-400/40 rounded-lg text-xs text-emerald-200">
                         <CheckCircle size={14} />
                         Active
@@ -380,13 +380,13 @@ const AdminUserManagement = () => {
                         Disabled
                       </span>
                     )}
-                    {selectedUser.deviceInstalled && (
+                    {selectedUser.device_installed && (
                       <span className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 border border-blue-400/40 rounded-lg text-xs text-blue-200">
                         <Smartphone size={14} />
                         App Installed
                       </span>
                     )}
-                    {selectedUser.isAdmin && (
+                    {selectedUser.is_admin && (
                       <span className="flex items-center gap-1 px-3 py-1.5 bg-violet-500/20 border border-violet-400/40 rounded-lg text-xs text-violet-200">
                         <Shield size={14} />
                         Admin
@@ -395,10 +395,10 @@ const AdminUserManagement = () => {
                   </div>
                 </div>
 
-                {selectedUser.disabledAt && (
+                {selectedUser.disabled_at && (
                   <div className="p-4 bg-rose-500/10 border border-rose-400/30 rounded-xl">
                     <p className="text-rose-200 text-xs uppercase tracking-wider mb-1">Disabled At</p>
-                    <p className="text-rose-100 text-sm">{new Date(selectedUser.disabledAt).toLocaleString()}</p>
+                    <p className="text-rose-100 text-sm">{new Date(selectedUser.disabled_at).toLocaleString()}</p>
                   </div>
                 )}
 

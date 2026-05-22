@@ -21,7 +21,7 @@ import OfflineIndicator from './components/shared/OfflineIndicator';
 import AIChat from './components/shared/AIChat';
 import { isAdminSession } from './utils/adminAuth';
 import { initTheme } from './utils/theme';
-import { getCurrentUser, verifyUserStatus, initFirebase } from './utils/firebase';
+import { getCurrentUser, verifyUserStatus, initSupabase } from './utils/supabase';
 
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const Admin = lazy(() => import('./pages/Admin'));
@@ -87,7 +87,7 @@ function App() {
 
   useEffect(() => {
     initTheme();
-    initFirebase();
+    initSupabase();
   }, []);
 
   return (

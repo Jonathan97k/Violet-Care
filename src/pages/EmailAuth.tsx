@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
-import { signUpWithEmail, signInWithEmail, getCurrentUser, isAppInstalled } from '../utils/firebase';
+import { signUpWithEmail, signInWithEmail, getCurrentUser, isAppInstalled } from '../utils/supabase';
 import { haptics } from '../utils/haptics';
 
 const EmailAuth = () => {

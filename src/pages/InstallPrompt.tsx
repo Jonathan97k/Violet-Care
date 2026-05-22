@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Download, Smartphone, Check, X, AlertCircle } from 'lucide-react';
-import { markDeviceAsInstalled, isAppInstalled, getCurrentUser, signOutUser } from '../utils/firebase';
+import { markDeviceAsInstalled, isAppInstalled, getCurrentUser, signOutUser } from '../utils/supabase';
 import { haptics } from '../utils/haptics';
 
 interface BeforeInstallPromptEvent extends Event {
